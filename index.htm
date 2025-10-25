@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conversor Numérico Taller</title>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        /* --- CSS Global --- */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            padding: 10px;
+            text-align: center;
+        }
+
+        h1,
+        h2 {
+            color: #333;
+            margin-top: 10px;
+        }
+
+        .converter-section,
+        .header-section,
+        .input-group {
+            max-width: 800px;
+            margin: 15px auto;
+            padding: 15px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .header-section {
+            background-color: #e3f2fd;
+        }
+
+        input[type="number"],
+        input[type="text"],
+        input[type="date"] {
+            padding: 10px;
+            margin: 8px 0;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            font-size: 16px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        /* Botones */
+        button {
+            padding: 10px 15px;
+            margin: 8px 5px;
+            border-radius: 4px;
+            cursor: pointer;
+            border: none;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+
+        .add-btn {
+            background-color: #007bff;
+            color: white;
+            width: 100%;
+        }
+
+        .convert-btn {
+            background-color: #4CAF50;
+            color: white;
+            width: 30%;
+        }
+
+        .pdf-btn {
+            background-color: #dc3545;
+            color: white;
+            margin-top: 20px;
+            width: 98%;
+        }
+
+        .resultado {
+            margin-top: 10px;
+            font-size: 1.1em;
+            font-weight: normal;
+            color: #007bff;
+        }
+
+        .conversion-result {
+            padding: 15px 0;
+            border-top: 1px solid #eee;
+            margin-top: 15px;
+        }
+
+        /* Contenedor de la tabla */
+        .proceso-table-container {
+            overflow-x: auto;
+            padding-bottom: 5px;
+        }
+
+        /* --- CSS para Tablas y Formato --- */
+        table {
+            /* **AJUSTE CRÍTICO PARA EVITAR CORTE DE PÁGINA EN PDF** */
+            /* Sugiere al renderizador de impresión mantener el contenido unido */
+            break-inside: avoid;
+            page-break-inside: avoid;
+
+            min-width: 500px;
+            width: 100%;
+            margin: 10px 0;
+            border-collapse: collapse;
+            font-size: 0.75em;
+            text-align: center;
+            transform-origin: top left;
+            /* Se usa solo en la web, se quita para el PDF */
+            transform: scale(0.85);
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 5px;
+            white-space: nowrap;
+        }
+
+        th {
+            background-color: #e0f7fa;
+            color: #000;
+            font-weight: bold;
+        }
+
+        /* ESTILO PARA LA "ZONA VERDE" DE RESIDUOS (GENERAL) */
+        .residuo-col {
+            background-color: #c8e6c9;
+            /* Verde claro */
+        }
+
+
+        /* **AJUSTE CLAVE: ZONA VERDE MÁS OSCURA para el MSB (último residuo)** */
+        .residuo-col.dec-bin-msb {
+            font-weight: bolder;
+            /* Negrita para resaltar */
+            background-color: #a3d7a4;
+            /* Un verde más oscuro, similar al de la imagen */
+            font-size: 1.1em;
+        }
+
+        /* Ajuste de la tabla Binario a Decimal */
+        .bin-to-dec-table th {
+            background-color: #ffe0b2;
+        }
+
+        hr {
+            border: 0;
+            height: 1px;
+            background-image: linear-gradient(to right, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0));
+            margin: 30px 0;
+        }
+
+        .conversion-input {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .conversion-input input {
+            width: 65%;
+        }
+
+        @media (min-width: 600px) {
+            .conversion-input input {
+                width: 70%;
+            }
+
+            table {
+                transform: scale(1);
+                font-size: 0.9em;
+            }
+        }
+    </style>
+
+</head>
+
+<body>
+    <h1>Conversor Numérico para Taller</h1>
+
+    <section class="header-section">
+        <h2>Datos del Taller</h2>
+        <input type="text" id="tallerInput" value="Taller 2 de Álgebra Lineal" placeholder="Título del Taller">
+        <input type="date" id="fechaInput" value="2025-10-25">
+        <input type="text" id="institucionInput" placeholder="Institución (ej: Politécnico)">
+
+        <h3>Integrantes</h3>
+        <div id="integrantesContainer">
+            <input type="text" name="integrante" class="integrante-input" placeholder="Nombre del Integrante 1 (ej: Iván)">
+        </div>
+        <button class="add-btn" onclick="agregarIntegrante()">+ Adicionar otro Integrante</button>
+    </section>
+    <hr>
+
+    <section class="converter-section">
+        <h2>Decimal a Binario</h2>
+        <div id="decToBinInputs">
+            <div class="conversion-input">
+                <input type="number" class="decimal-input" placeholder="Decimal #1 (ej. 530)">
+                <button class="convert-btn" onclick="convertDecimalToBinary(this)">Calcular</button>
+            </div>
+        </div>
+        <button class="add-btn" onclick="agregarInput('decToBin')">+ Agregar otro número decimal</button>
+        <div id="resultadosDecimalABinario" class="pdf-content"></div>
+    </section>
+    <hr>
+    <section class="converter-section">
+        <h2>Binario a Decimal</h2>
+        <div id="binToDecInputs">
+            <div class="conversion-input">
+                <input type="text" class="binary-input" placeholder="Binario #1 (ej. 1100111)">
+                <button class="convert-btn" onclick="convertBinaryToDecimal(this)">Calcular</button>
+            </div>
+        </div>
+        <button class="add-btn" onclick="agregarInput('binToDec')">+ Agregar otro número binario</button>
+        <div id="resultadosBinarioADecimal" class="pdf-content"></div>
+    </section>
+
+    <hr>
+
+    <button class="pdf-btn" onclick="generarPDF()">Generar un Único PDF con Todos los Resultados</button>
+    <script>
+        // --- JAVASCRIPT ---
+
+        let inputCounterDec = 1;
+        let inputCounterBin = 1;
+
+        function agregarInput(tipo) {
+            const container = document.getElementById(tipo === 'decToBin' ? 'decToBinInputs' : 'binToDecInputs');
+            const newDiv = document.createElement('div');
+            newDiv.className = 'conversion-input';
+
+            if (tipo === 'decToBin') {
+                inputCounterDec++;
+                newDiv.innerHTML = `
+                    <input type="number" class="decimal-input" placeholder="Decimal #${inputCounterDec}">
+                    <button class="convert-btn" onclick="convertDecimalToBinary(this)">Calcular</button>
+                `;
+            } else {
+                inputCounterBin++;
+                newDiv.innerHTML = `
+                    <input type="text" class="binary-input" placeholder="Binario #${inputCounterBin}">
+                    <button class="convert-btn" onclick="convertBinaryToDecimal(this)">Calcular</button>
+                `;
+            }
+            container.appendChild(newDiv);
+        }
+
+        function agregarIntegrante() {
+            const container = document.getElementById('integrantesContainer');
+            const newCount = container.querySelectorAll('.integrante-input').length + 1;
+            const newInput = document.createElement('input');
+            newInput.type = 'text';
+            newInput.name = 'integrante';
+            newInput.className = 'integrante-input';
+            newInput.placeholder = `Nombre del Integrante ${newCount}`;
+            container.appendChild(newInput);
+        }
+
+        function isPositiveInteger(value) {
+            return !isNaN(value) && parseInt(Number(value)) === Number(value) && value >= 0;
+        }
+
+        // **ÚNICO PUNTO DE RENDERIZADO**
+        function actualizarResultados(tipo) {
+            const container = document.getElementById(tipo === 'decToBin' ? 'resultadosDecimalABinario' : 'resultadosBinarioADecimal');
+            const inputElements = document.querySelectorAll(tipo === 'decToBin' ? '#decToBinInputs .conversion-input' : '#binToDecInputs .conversion-input');
+
+            let allResultsHTML = '';
+            inputElements.forEach(inputGroup => {
+                const resultDiv = inputGroup.nextElementSibling;
+
+                // El resultado solo se copia si existe y contiene contenido de conversión
+                if (resultDiv && resultDiv.classList.contains('result-output') && resultDiv.innerHTML.includes('conversion-result')) {
+                    allResultsHTML += resultDiv.innerHTML;
+                    allResultsHTML += '<hr style="border-top: 1px dotted #ccc; margin: 30px 0;">';
+                }
+            });
+
+            if (allResultsHTML.endsWith('<hr style="border-top: 1px dotted #ccc; margin: 30px 0;">')) {
+                allResultsHTML = allResultsHTML.slice(0, -56); // Eliminar el último HR
+            }
+            container.innerHTML = allResultsHTML;
+        }
+
+
+        // --- 1. Decimal a Binario (Divisiones Sucesivas) ---
+        function convertDecimalToBinary(button) {
+            const input = button.previousElementSibling;
+            const decimal = parseFloat(input.value);
+            const inputGroup = button.parentElement;
+
+            let outputContainer = inputGroup.nextElementSibling;
+            if (!outputContainer || !outputContainer.classList.contains('result-output')) {
+                outputContainer = document.createElement('div');
+                outputContainer.className = 'result-output';
+                outputContainer.style.display = 'none'; // Ocultar para evitar doble cálculo
+                inputGroup.after(outputContainer);
+            }
+
+            if (!isPositiveInteger(decimal)) {
+                outputContainer.innerHTML = '<div class="resultado" style="color:#dc3545;">⚠️ Decimal entero positivo inválido.</div>';
+                actualizarResultados('decToBin');
+                return;
+            }
+
+            let n = parseInt(decimal);
+            const pasos = [];
+            let binario = '';
+
+            if (decimal === 0) {
+                binario = '0';
+                pasos.push({
+                    numero: 0,
+                    divididoEntre2: 0,
+                    residuo: 0
+                });
+            } else {
+                while (n > 0) {
+                    const residuo = n % 2;
+                    const cociente = Math.floor(n / 2);
+                    pasos.push({
+                        numero: n,
+                        divididoEntre2: cociente,
+                        residuo: residuo
+                    });
+                    binario = residuo + binario;
+                    n = cociente;
+                }
+            }
+
+            // Generar tabla y resultado
+            let tablaHTML = '<div class="conversion-result">';
+            tablaHTML += `<div class="resultado" style="margin-bottom: 10px;">${decimal}<sub>(10)</sub> = ${binario}<sub>(2)</sub></div>`;
+            tablaHTML += '<p style="font-weight: bold; margin: 15px 0 5px;">Procedimiento (Lectura: de abajo hacia arriba):</p>';
+
+            tablaHTML += '<div class="proceso-table-container">';
+            tablaHTML += '<table style="min-width: 500px;">';
+            tablaHTML += '<thead><tr><th>NÚMERO</th><th>DIVIDIDO ENTRE 2</th><th class="residuo-col">RESIDUO</th></tr></thead>';
+            tablaHTML += '<tbody>';
+
+            // El array `pasos` está en orden de cálculo (de arriba a abajo de la tabla).
+            for (let i = 0; i < pasos.length; i++) {
+                const paso = pasos[i];
+                let residuoCellContent = paso.residuo;
+                let residuoCellClass = 'residuo-col';
+
+                // Aplicar el estilo más oscuro al último paso (índice `pasos.length - 1`),
+                // que es el que tiene el color resaltado en la imagen.
+                if (i === pasos.length - 1) {
+                    residuoCellClass += ' dec-bin-msb';
+                }
+
+                tablaHTML += `<tr><td>${paso.numero}</td><td>${paso.divididoEntre2}</td><td class="${residuoCellClass}">${residuoCellContent}</td></tr>`;
+            }
+
+
+            tablaHTML += '</tbody>';
+            tablaHTML += '</table>';
+            tablaHTML += '</div>';
+            tablaHTML += '</div>';
+
+            outputContainer.innerHTML = tablaHTML;
+            actualizarResultados('decToBin');
+        }
+
+
+        // --- 2. Binario a Decimal (Suma de Potencias) ---
+        function convertBinaryToDecimal(button) {
+            const input = button.previousElementSibling;
+            const binarioStr = input.value.trim();
+            const inputGroup = button.parentElement;
+
+            let outputContainer = inputGroup.nextElementSibling;
+            if (!outputContainer || !outputContainer.classList.contains('result-output')) {
+                outputContainer = document.createElement('div');
+                outputContainer.className = 'result-output';
+                outputContainer.style.display = 'none'; // Ocultar para evitar doble cálculo
+                inputGroup.after(outputContainer);
+            }
+
+            if (!/^[01]+$/.test(binarioStr) || binarioStr === '') {
+                outputContainer.innerHTML = '<div class="resultado" style="color:#dc3545;">⚠️ Binario inválido (solo 0s y 1s).</div>';
+                actualizarResultados('binToDec');
+                return;
+            }
+
+            const nBits = binarioStr.length;
+            let decimal = 0;
+            let sumaParcial = '';
+
+            let tablaHTML = '<div class="conversion-result">';
+            let filaPotencia = '<tr><th>Potencia</th>';
+            let filaValorPotencia = '<tr><th>Resultado</th>';
+            let filaBinario = '<tr><th>Binario</th>';
+            let filaParcial = '<tr><th class="residuo-col">Parcial</th>';
+
+            for (let i = 0; i < nBits; i++) {
+                // Lee de derecha a izquierda (potencia 0 a n-1)
+                const digito = parseInt(binarioStr[nBits - 1 - i]);
+                const potencia = i;
+                const valorPotencia = Math.pow(2, potencia);
+                const resultadoParcial = digito * valorPotencia;
+
+                filaPotencia += `<td>2<sup>${potencia}</sup></td>`;
+                filaValorPotencia += `<td>${valorPotencia}</td>`;
+                filaBinario += `<td>${digito}</td>`;
+                filaParcial += `<td class="residuo-col">${resultadoParcial}</td>`;
+
+                if (digito === 1) {
+                    decimal += valorPotencia;
+                    // Construir la suma en orden descendente de potencia para mejor lectura (e.g., 64 + 32 + ...)
+                    sumaParcial = sumaParcial === '' ? `${valorPotencia}` : `${valorPotencia} + ${sumaParcial}`;
+                }
+            }
+
+            let sumaHTML = `<p style="font-weight: bold;">Suma de valores: ${sumaParcial} = <span class="residuo-col" style="padding: 5px; border-radius: 4px; display: inline-block;">${decimal}</span></p>`;
+
+            tablaHTML += `<div class="resultado" style="margin-bottom: 10px;">${binarioStr}<sub>(2)</sub> = ${decimal}<sub>(10)</sub></div>`;
+            tablaHTML += '<p style="font-weight: bold; margin: 15px 0 5px;">Procedimiento:</p>';
+
+            tablaHTML += '<div class="proceso-table-container">';
+            tablaHTML += '<table class="bin-to-dec-table" style="min-width: 500px;">';
+            tablaHTML += '<thead>' + filaPotencia + '</tr>' + filaValorPotencia + '</tr>' + filaBinario + '</tr>' + '</thead>';
+            tablaHTML += '<tbody>' + filaParcial + '</tr>' + '</tbody>';
+            tablaHTML += '</table>';
+            tablaHTML += '</div>';
+
+            tablaHTML += `<div style="text-align: center; margin-top: 10px;">${sumaHTML}</div>`;
+            tablaHTML += '</div>';
+
+            outputContainer.innerHTML = tablaHTML;
+            actualizarResultados('binToDec');
+        }
+
+
+        // --- 3. Generar ÚNICO PDF (Optimizado para evitar cortes) ---
+        async function generarPDF() {
+            const {
+                jsPDF
+            } = window.jspdf;
+
+            const taller = document.getElementById('tallerInput').value || 'Taller sin título';
+            const fecha = document.getElementById('fechaInput').value || new Date().toISOString().slice(0, 10);
+            const institucion = document.getElementById('institucionInput').value || 'Sin institución';
+            const integrantes = Array.from(document.querySelectorAll('.integrante-input'))
+                .map(input => input.value.trim())
+                .filter(name => name !== '');
+
+            const decResults = document.getElementById('resultadosDecimalABinario').innerHTML;
+            const binResults = document.getElementById('resultadosBinarioADecimal').innerHTML;
+
+            if (integrantes.length === 0) {
+                alert('⚠️ Por favor, ingresa al menos un nombre de integrante.');
+                return;
+            }
+
+            if (!decResults && !binResults) {
+                alert('⚠️ No hay resultados de conversión válidos para generar el PDF. ¡Calcula al menos un número!');
+                return;
+            }
+
+            const integrantList = integrantes.map(name => `<p style="margin: 5px 0;">- ${name}</p>`).join('');
+
+            // Construir el HTML del documento PDF completo
+            const contentHTML = document.createElement('div');
+            const pdfDocument = document.createElement('div');
+            pdfDocument.id = 'pdf-capture-area'; // ID para la captura
+            pdfDocument.style.padding = '20mm';
+            pdfDocument.style.backgroundColor = '#fff';
+            pdfDocument.style.width = '190mm'; // Ancho un poco más generoso que 170mm
+            pdfDocument.style.margin = '0 auto';
+            pdfDocument.style.fontFamily = 'Arial, sans-serif';
+
+
+            // Encabezado
+            let finalContent = `
+                <div style="margin-bottom: 20px; text-align: left;">
+                    <h2 style="text-align: center; color: #333; margin-bottom: 20px;">ÁLGEBRA LINEAL</h2>
+                    <hr style="border-top: 2px solid #000; margin-bottom: 10px;">
+                    <p style="font-weight: bold; margin: 5px 0;">Taller: <span style="font-weight: normal;">${taller}</span></p>
+                    <p style="margin: 5px 0;">Fecha: <span style="font-weight: normal;">${fecha}</span></p>
+                    <p style="margin: 5px 0;">Institución: <span style="font-weight: normal;">${institucion}</span></p>
+                    <p style="font-weight: bold; margin-top: 15px;">Integrantes:</p>
+                    ${integrantList}
+                    <hr style="border-top: 1px dashed #ccc; margin: 20px 0;">
+                </div>
+            `;
+
+            // Sección Decimal a Binario
+            if (decResults) {
+                finalContent += `<h3 style="color: #333; margin-top: 25px; border-bottom: 1px solid #eee; padding-bottom: 5px; text-align: center;">Conversión Decimal a Binario (Método de Divisiones Sucesivas)</h3>`;
+                finalContent += decResults;
+            }
+
+            // Sección Binario a Decimal
+            if (binResults) {
+                // Forzar salto de página suave si es necesario
+                finalContent += `<div style="page-break-before: auto; margin-top: 40px;"></div>`;
+                finalContent += `<h3 style="color: #333; margin-top: 25px; border-bottom: 1px solid #eee; padding-bottom: 5px; text-align: center;">Conversión Binario a Decimal (Suma de Potencias)</h3>`;
+                finalContent += binResults;
+            }
+
+            pdfDocument.innerHTML = finalContent;
+            contentHTML.appendChild(pdfDocument);
+
+            // Preparación para Captura: Asegurar que las tablas estén a escala 1:1 para el PDF
+            contentHTML.querySelectorAll('.proceso-table-container').forEach(container => {
+                container.style.overflowX = 'visible'; // Deshabilita scroll horizontal
+                const table = container.querySelector('table');
+                if (table) {
+                    table.style.transform = 'scale(1)'; // Escala normal para el PDF (quitando el 0.85 del CSS global)
+                    table.style.minWidth = '100%';
+                    table.style.fontSize = '0.85em';
+                }
+            });
+
+            // Añadir el contenido al DOM para que html2canvas pueda renderizarlo
+            document.body.appendChild(contentHTML);
+
+            // Captura
+            const canvas = await html2canvas(document.getElementById('pdf-capture-area'), {
+                scale: 2, // Mayor escala para mejor calidad
+                logging: false,
+                useCORS: true,
+            });
+
+            // Eliminar el contenido temporal del DOM
+            document.body.removeChild(contentHTML);
+
+            // Generar el PDF a partir de la imagen (canvas)
+            const imgData = canvas.toDataURL('image/jpeg', 1.0);
+
+            // Configurar jsPDF
+            const doc = new jsPDF('p', 'mm', 'a4');
+            const imgWidth = 210;
+            const pageHeight = 297;
+            const imgHeight = canvas.height * imgWidth / canvas.width;
+            let heightLeft = imgHeight;
+            let position = 0;
+
+            // Añadir la imagen al PDF (manejo de múltiples páginas)
+            doc.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
+
+            while (heightLeft > 0) {
+                position = heightLeft - imgHeight;
+                doc.addPage();
+                doc.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+            }
+
+            // Guardar el PDF
+            doc.save(`Taller_Conversiones_${fecha}.pdf`);
+        }
+    </script>
+</body>
+
+</html>
