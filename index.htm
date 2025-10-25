@@ -50,6 +50,20 @@
             box-sizing: border-box;
         }
 
+        /* Contenedor flexible para los nuevos campos */
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        @media (min-width: 600px) {
+            .info-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
         /* Botones */
         button {
             padding: 10px 15px;
@@ -91,6 +105,9 @@
             padding: 15px 0;
             border-top: 1px solid #eee;
             margin-top: 15px;
+            /* Evitar cortes de página en el contenedor del resultado */
+            page-break-inside: avoid;
+            break-inside: avoid;
         }
 
         /* Contenedor de la tabla */
@@ -101,11 +118,8 @@
 
         /* --- CSS para Tablas y Formato --- */
         table {
-            /* **AJUSTE CRÍTICO PARA EVITAR CORTE DE PÁGINA EN PDF** */
-            /* Sugiere al renderizador de impresión mantener el contenido unido */
             break-inside: avoid;
             page-break-inside: avoid;
-
             min-width: 500px;
             width: 100%;
             margin: 10px 0;
@@ -113,7 +127,6 @@
             font-size: 0.75em;
             text-align: center;
             transform-origin: top left;
-            /* Se usa solo en la web, se quita para el PDF */
             transform: scale(0.85);
         }
 
@@ -133,16 +146,13 @@
         /* ESTILO PARA LA "ZONA VERDE" DE RESIDUOS (GENERAL) */
         .residuo-col {
             background-color: #c8e6c9;
-            /* Verde claro */
         }
 
 
-        /* **AJUSTE CLAVE: ZONA VERDE MÁS OSCURA para el MSB (último residuo)** */
+        /* **ZONA VERDE MÁS OSCURA para el MSB (último residuo)** */
         .residuo-col.dec-bin-msb {
             font-weight: bolder;
-            /* Negrita para resaltar */
             background-color: #a3d7a4;
-            /* Un verde más oscuro, similar al de la imagen */
             font-size: 1.1em;
         }
 
@@ -183,18 +193,24 @@
 
 </head>
 
-<body>
+<body onload="loadData()">
     <h1>Conversor Numérico para Taller</h1>
 
     <section class="header-section">
         <h2>Datos del Taller</h2>
-        <input type="text" id="tallerInput" value="Taller 2 de Álgebra Lineal" placeholder="Título del Taller">
-        <input type="date" id="fechaInput" value="2025-10-25">
-        <input type="text" id="institucionInput" placeholder="Institución (ej: Politécnico)">
+        <input type="text" id="tallerInput" value="Taller 2 de Álgebra Lineal" placeholder="Título del Taller" oninput="saveData()">
+        <input type="date" id="fechaInput" value="2025-10-25" oninput="saveData()">
+        <input type="text" id="institucionInput" placeholder="Institución (ej: Politécnico)" oninput="saveData()">
+
+        <div class="info-grid">
+            <input type="text" id="programaInput" placeholder="Programa (ej: Ingeniería de Sistemas)" oninput="saveData()">
+            <input type="text" id="jornadaInput" placeholder="Jornada (ej: Nocturna)" oninput="saveData()">
+            <input type="number" id="cicloInput" placeholder="Ciclo Cursado (ej: 4)" oninput="saveData()">
+        </div>
 
         <h3>Integrantes</h3>
         <div id="integrantesContainer">
-            <input type="text" name="integrante" class="integrante-input" placeholder="Nombre del Integrante 1 (ej: Iván)">
+            <input type="text" name="integrante" class="integrante-input" placeholder="Nombre del Integrante 1 (ej: Iván)" oninput="saveData()">
         </div>
         <button class="add-btn" onclick="agregarIntegrante()">+ Adicionar otro Integrante</button>
     </section>
@@ -204,7 +220,7 @@
         <h2>Decimal a Binario</h2>
         <div id="decToBinInputs">
             <div class="conversion-input">
-                <input type="number" class="decimal-input" placeholder="Decimal #1 (ej. 530)">
+                <input type="number" class="decimal-input" placeholder="Decimal #1 (ej. 530)" oninput="saveData()">
                 <button class="convert-btn" onclick="convertDecimalToBinary(this)">Calcular</button>
             </div>
         </div>
@@ -216,7 +232,7 @@
         <h2>Binario a Decimal</h2>
         <div id="binToDecInputs">
             <div class="conversion-input">
-                <input type="text" class="binary-input" placeholder="Binario #1 (ej. 1100111)">
+                <input type="text" class="binary-input" placeholder="Binario #1 (ej. 1100111)" oninput="saveData()">
                 <button class="convert-btn" onclick="convertBinaryToDecimal(this)">Calcular</button>
             </div>
         </div>
@@ -228,40 +244,173 @@
 
     <button class="pdf-btn" onclick="generarPDF()">Generar un Único PDF con Todos los Resultados</button>
     <script>
-        // --- JAVASCRIPT ---
+        // --- JAVASCRIPT: Persistencia y Lógica de UI ---
 
         let inputCounterDec = 1;
         let inputCounterBin = 1;
 
-        function agregarInput(tipo) {
+        // ** FUNCIÓN PARA GUARDAR DATOS EN localStorage **
+        function saveData() {
+            const data = {
+                // 1. Datos del Encabezado
+                taller: document.getElementById('tallerInput').value,
+                fecha: document.getElementById('fechaInput').value,
+                institucion: document.getElementById('institucionInput').value,
+                programa: document.getElementById('programaInput').value,
+                jornada: document.getElementById('jornadaInput').value,
+                ciclo: document.getElementById('cicloInput').value,
+
+                // 2. Integrantes
+                integrantes: Array.from(document.querySelectorAll('.integrante-input')).map(input => input.value),
+
+                // 3. Inputs Decimal
+                decInputs: Array.from(document.querySelectorAll('#decToBinInputs .decimal-input')).map(input => input.value),
+
+                // 4. Inputs Binario
+                binInputs: Array.from(document.querySelectorAll('#binToDecInputs .binary-input')).map(input => input.value),
+            };
+            try {
+                localStorage.setItem('tallerConversionesData', JSON.stringify(data));
+            } catch (e) {
+                console.error("Error al guardar en localStorage:", e);
+            }
+        }
+
+        // ** FUNCIÓN PARA CARGAR DATOS DESDE localStorage **
+        function loadData() {
+            try {
+                const storedData = localStorage.getItem('tallerConversionesData');
+                if (!storedData) return;
+
+                const data = JSON.parse(storedData);
+
+                // 1. Cargar Datos del Encabezado
+                document.getElementById('tallerInput').value = data.taller || '';
+                document.getElementById('fechaInput').value = data.fecha || '';
+                document.getElementById('institucionInput').value = data.institucion || '';
+                document.getElementById('programaInput').value = data.programa || '';
+                document.getElementById('jornadaInput').value = data.jornada || '';
+                document.getElementById('cicloInput').value = data.ciclo || '';
+
+                // 2. Cargar Integrantes
+                const integrantesContainer = document.getElementById('integrantesContainer');
+                integrantesContainer.innerHTML = ''; // Limpiar entradas predeterminadas
+
+                if (data.integrantes && data.integrantes.length > 0) {
+                    data.integrantes.forEach((name, index) => {
+                        const newInput = document.createElement('input');
+                        newInput.type = 'text';
+                        newInput.name = 'integrante';
+                        newInput.className = 'integrante-input';
+                        newInput.placeholder = `Nombre del Integrante ${index + 1}`;
+                        newInput.value = name;
+                        newInput.oninput = saveData; // Asegurar que el listener se aplique
+                        integrantesContainer.appendChild(newInput);
+                    });
+                } else {
+                    // Si no hay datos, dejar el input predeterminado
+                    agregarIntegrante(1);
+                }
+
+
+                // 3. Cargar Inputs Decimales
+                const decInputsContainer = document.getElementById('decToBinInputs');
+                decInputsContainer.innerHTML = '';
+                if (data.decInputs && data.decInputs.length > 0) {
+                    data.decInputs.forEach((value, index) => {
+                        const count = index + 1;
+                        const newDiv = document.createElement('div');
+                        newDiv.className = 'conversion-input';
+                        newDiv.innerHTML = `
+                            <input type="number" class="decimal-input" placeholder="Decimal #${count}" value="${value}" oninput="saveData()">
+                            <button class="convert-btn" onclick="convertDecimalToBinary(this)">Calcular</button>
+                        `;
+                        decInputsContainer.appendChild(newDiv);
+                        inputCounterDec = count;
+
+                        // Si el valor no está vacío, recalcular para mostrar el resultado
+                        if (value) {
+                            convertDecimalToBinary(newDiv.querySelector('.convert-btn'));
+                        }
+                    });
+                } else {
+                    // Crear el primer input si no hay datos
+                    agregarInput('decToBin', 1);
+                }
+
+                // 4. Cargar Inputs Binarios
+                const binInputsContainer = document.getElementById('binToDecInputs');
+                binInputsContainer.innerHTML = '';
+                if (data.binInputs && data.binInputs.length > 0) {
+                    data.binInputs.forEach((value, index) => {
+                        const count = index + 1;
+                        const newDiv = document.createElement('div');
+                        newDiv.className = 'conversion-input';
+                        newDiv.innerHTML = `
+                            <input type="text" class="binary-input" placeholder="Binario #${count}" value="${value}" oninput="saveData()">
+                            <button class="convert-btn" onclick="convertBinaryToDecimal(this)">Calcular</button>
+                        `;
+                        binInputsContainer.appendChild(newDiv);
+                        inputCounterBin = count;
+
+                        // Si el valor no está vacío, recalcular para mostrar el resultado
+                        if (value) {
+                            convertBinaryToDecimal(newDiv.querySelector('.convert-btn'));
+                        }
+                    });
+                } else {
+                    // Crear el primer input si no hay datos
+                    agregarInput('binToDec', 1);
+                }
+
+            } catch (e) {
+                console.error("Error al cargar desde localStorage:", e);
+                // Si hay un error, limpiar y empezar de nuevo para evitar bucles
+                localStorage.removeItem('tallerConversionesData');
+            }
+        }
+
+        // Modificación de agregarInput para permitir carga inicial
+        function agregarInput(tipo, initialCount = 0) {
             const container = document.getElementById(tipo === 'decToBin' ? 'decToBinInputs' : 'binToDecInputs');
+
+            if (initialCount === 0) {
+                if (tipo === 'decToBin') {
+                    inputCounterDec++;
+                } else {
+                    inputCounterBin++;
+                }
+            }
+
+            const count = initialCount > 0 ? initialCount : (tipo === 'decToBin' ? inputCounterDec : inputCounterBin);
+
             const newDiv = document.createElement('div');
             newDiv.className = 'conversion-input';
 
             if (tipo === 'decToBin') {
-                inputCounterDec++;
                 newDiv.innerHTML = `
-                    <input type="number" class="decimal-input" placeholder="Decimal #${inputCounterDec}">
+                    <input type="number" class="decimal-input" placeholder="Decimal #${count}" oninput="saveData()">
                     <button class="convert-btn" onclick="convertDecimalToBinary(this)">Calcular</button>
                 `;
             } else {
-                inputCounterBin++;
                 newDiv.innerHTML = `
-                    <input type="text" class="binary-input" placeholder="Binario #${inputCounterBin}">
+                    <input type="text" class="binary-input" placeholder="Binario #${count}" oninput="saveData()">
                     <button class="convert-btn" onclick="convertBinaryToDecimal(this)">Calcular</button>
                 `;
             }
             container.appendChild(newDiv);
         }
 
-        function agregarIntegrante() {
+        // Modificación de agregarIntegrante para permitir carga inicial
+        function agregarIntegrante(initialCount = 0) {
             const container = document.getElementById('integrantesContainer');
-            const newCount = container.querySelectorAll('.integrante-input').length + 1;
+            const newCount = initialCount > 0 ? initialCount : container.querySelectorAll('.integrante-input').length + 1;
             const newInput = document.createElement('input');
             newInput.type = 'text';
             newInput.name = 'integrante';
             newInput.className = 'integrante-input';
             newInput.placeholder = `Nombre del Integrante ${newCount}`;
+            newInput.oninput = saveData; // Asegurar que guarda al teclear
             container.appendChild(newInput);
         }
 
@@ -278,7 +427,6 @@
             inputElements.forEach(inputGroup => {
                 const resultDiv = inputGroup.nextElementSibling;
 
-                // El resultado solo se copia si existe y contiene contenido de conversión
                 if (resultDiv && resultDiv.classList.contains('result-output') && resultDiv.innerHTML.includes('conversion-result')) {
                     allResultsHTML += resultDiv.innerHTML;
                     allResultsHTML += '<hr style="border-top: 1px dotted #ccc; margin: 30px 0;">';
@@ -302,13 +450,14 @@
             if (!outputContainer || !outputContainer.classList.contains('result-output')) {
                 outputContainer = document.createElement('div');
                 outputContainer.className = 'result-output';
-                outputContainer.style.display = 'none'; // Ocultar para evitar doble cálculo
+                outputContainer.style.display = 'none';
                 inputGroup.after(outputContainer);
             }
 
             if (!isPositiveInteger(decimal)) {
                 outputContainer.innerHTML = '<div class="resultado" style="color:#dc3545;">⚠️ Decimal entero positivo inválido.</div>';
                 actualizarResultados('decToBin');
+                saveData(); // Guarda incluso el valor inválido para no perderlo
                 return;
             }
 
@@ -337,7 +486,6 @@
                 }
             }
 
-            // Generar tabla y resultado
             let tablaHTML = '<div class="conversion-result">';
             tablaHTML += `<div class="resultado" style="margin-bottom: 10px;">${decimal}<sub>(10)</sub> = ${binario}<sub>(2)</sub></div>`;
             tablaHTML += '<p style="font-weight: bold; margin: 15px 0 5px;">Procedimiento (Lectura: de abajo hacia arriba):</p>';
@@ -347,21 +495,17 @@
             tablaHTML += '<thead><tr><th>NÚMERO</th><th>DIVIDIDO ENTRE 2</th><th class="residuo-col">RESIDUO</th></tr></thead>';
             tablaHTML += '<tbody>';
 
-            // El array `pasos` está en orden de cálculo (de arriba a abajo de la tabla).
             for (let i = 0; i < pasos.length; i++) {
                 const paso = pasos[i];
                 let residuoCellContent = paso.residuo;
                 let residuoCellClass = 'residuo-col';
 
-                // Aplicar el estilo más oscuro al último paso (índice `pasos.length - 1`),
-                // que es el que tiene el color resaltado en la imagen.
                 if (i === pasos.length - 1) {
                     residuoCellClass += ' dec-bin-msb';
                 }
 
                 tablaHTML += `<tr><td>${paso.numero}</td><td>${paso.divididoEntre2}</td><td class="${residuoCellClass}">${residuoCellContent}</td></tr>`;
             }
-
 
             tablaHTML += '</tbody>';
             tablaHTML += '</table>';
@@ -370,6 +514,7 @@
 
             outputContainer.innerHTML = tablaHTML;
             actualizarResultados('decToBin');
+            saveData(); // Guardar después del cálculo exitoso
         }
 
 
@@ -383,13 +528,14 @@
             if (!outputContainer || !outputContainer.classList.contains('result-output')) {
                 outputContainer = document.createElement('div');
                 outputContainer.className = 'result-output';
-                outputContainer.style.display = 'none'; // Ocultar para evitar doble cálculo
+                outputContainer.style.display = 'none';
                 inputGroup.after(outputContainer);
             }
 
             if (!/^[01]+$/.test(binarioStr) || binarioStr === '') {
                 outputContainer.innerHTML = '<div class="resultado" style="color:#dc3545;">⚠️ Binario inválido (solo 0s y 1s).</div>';
                 actualizarResultados('binToDec');
+                saveData(); // Guarda incluso el valor inválido para no perderlo
                 return;
             }
 
@@ -404,7 +550,6 @@
             let filaParcial = '<tr><th class="residuo-col">Parcial</th>';
 
             for (let i = 0; i < nBits; i++) {
-                // Lee de derecha a izquierda (potencia 0 a n-1)
                 const digito = parseInt(binarioStr[nBits - 1 - i]);
                 const potencia = i;
                 const valorPotencia = Math.pow(2, potencia);
@@ -417,7 +562,6 @@
 
                 if (digito === 1) {
                     decimal += valorPotencia;
-                    // Construir la suma en orden descendente de potencia para mejor lectura (e.g., 64 + 32 + ...)
                     sumaParcial = sumaParcial === '' ? `${valorPotencia}` : `${valorPotencia} + ${sumaParcial}`;
                 }
             }
@@ -439,6 +583,7 @@
 
             outputContainer.innerHTML = tablaHTML;
             actualizarResultados('binToDec');
+            saveData(); // Guardar después del cálculo exitoso
         }
 
 
@@ -451,6 +596,10 @@
             const taller = document.getElementById('tallerInput').value || 'Taller sin título';
             const fecha = document.getElementById('fechaInput').value || new Date().toISOString().slice(0, 10);
             const institucion = document.getElementById('institucionInput').value || 'Sin institución';
+            const programa = document.getElementById('programaInput').value || 'Sin programa';
+            const jornada = document.getElementById('jornadaInput').value || 'Sin jornada';
+            const ciclo = document.getElementById('cicloInput').value || 'Sin ciclo';
+
             const integrantes = Array.from(document.querySelectorAll('.integrante-input'))
                 .map(input => input.value.trim())
                 .filter(name => name !== '');
@@ -470,13 +619,12 @@
 
             const integrantList = integrantes.map(name => `<p style="margin: 5px 0;">- ${name}</p>`).join('');
 
-            // Construir el HTML del documento PDF completo
             const contentHTML = document.createElement('div');
             const pdfDocument = document.createElement('div');
-            pdfDocument.id = 'pdf-capture-area'; // ID para la captura
+            pdfDocument.id = 'pdf-capture-area';
             pdfDocument.style.padding = '20mm';
             pdfDocument.style.backgroundColor = '#fff';
-            pdfDocument.style.width = '190mm'; // Ancho un poco más generoso que 170mm
+            pdfDocument.style.width = '190mm';
             pdfDocument.style.margin = '0 auto';
             pdfDocument.style.fontFamily = 'Arial, sans-serif';
 
@@ -489,6 +637,9 @@
                     <p style="font-weight: bold; margin: 5px 0;">Taller: <span style="font-weight: normal;">${taller}</span></p>
                     <p style="margin: 5px 0;">Fecha: <span style="font-weight: normal;">${fecha}</span></p>
                     <p style="margin: 5px 0;">Institución: <span style="font-weight: normal;">${institucion}</span></p>
+                    <p style="margin: 5px 0;">Programa: <span style="font-weight: normal;">${programa}</span></p>
+                    <p style="margin: 5px 0;">Jornada: <span style="font-weight: normal;">${jornada}</span></p>
+                    <p style="margin: 5px 0;">Ciclo Cursado: <span style="font-weight: normal;">${ciclo}</span></p>
                     <p style="font-weight: bold; margin-top: 15px;">Integrantes:</p>
                     ${integrantList}
                     <hr style="border-top: 1px dashed #ccc; margin: 20px 0;">
@@ -503,8 +654,8 @@
 
             // Sección Binario a Decimal
             if (binResults) {
-                // Forzar salto de página suave si es necesario
-                finalContent += `<div style="page-break-before: auto; margin-top: 40px;"></div>`;
+                // Forzar salto de página fuerte entre secciones grandes
+                finalContent += `<div style="page-break-before: always; margin-top: 0px;"></div>`; 
                 finalContent += `<h3 style="color: #333; margin-top: 25px; border-bottom: 1px solid #eee; padding-bottom: 5px; text-align: center;">Conversión Binario a Decimal (Suma de Potencias)</h3>`;
                 finalContent += binResults;
             }
@@ -512,34 +663,33 @@
             pdfDocument.innerHTML = finalContent;
             contentHTML.appendChild(pdfDocument);
 
-            // Preparación para Captura: Asegurar que las tablas estén a escala 1:1 para el PDF
+            // Preparación para Captura
             contentHTML.querySelectorAll('.proceso-table-container').forEach(container => {
-                container.style.overflowX = 'visible'; // Deshabilita scroll horizontal
+                container.style.overflowX = 'visible'; 
                 const table = container.querySelector('table');
                 if (table) {
-                    table.style.transform = 'scale(1)'; // Escala normal para el PDF (quitando el 0.85 del CSS global)
+                    table.style.transform = 'scale(1)'; 
                     table.style.minWidth = '100%';
                     table.style.fontSize = '0.85em';
                 }
             });
 
-            // Añadir el contenido al DOM para que html2canvas pueda renderizarlo
             document.body.appendChild(contentHTML);
 
             // Captura
             const canvas = await html2canvas(document.getElementById('pdf-capture-area'), {
-                scale: 2, // Mayor escala para mejor calidad
+                scale: 2,
                 logging: false,
                 useCORS: true,
+                windowWidth: 1000,
+                windowHeight: document.getElementById('pdf-capture-area').offsetHeight + 50
             });
 
-            // Eliminar el contenido temporal del DOM
             document.body.removeChild(contentHTML);
 
             // Generar el PDF a partir de la imagen (canvas)
             const imgData = canvas.toDataURL('image/jpeg', 1.0);
 
-            // Configurar jsPDF
             const doc = new jsPDF('p', 'mm', 'a4');
             const imgWidth = 210;
             const pageHeight = 297;
@@ -547,7 +697,6 @@
             let heightLeft = imgHeight;
             let position = 0;
 
-            // Añadir la imagen al PDF (manejo de múltiples páginas)
             doc.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
             heightLeft -= pageHeight;
 
@@ -558,7 +707,6 @@
                 heightLeft -= pageHeight;
             }
 
-            // Guardar el PDF
             doc.save(`Taller_Conversiones_${fecha}.pdf`);
         }
     </script>
