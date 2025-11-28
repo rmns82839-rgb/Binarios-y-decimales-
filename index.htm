@@ -87,6 +87,28 @@
             width: 30%;
         }
 
+        /* NUEVOS ESTILOS */
+        .clear-btn {
+            background-color: #ffc107;
+            color: #333;
+            width: 98%;
+        }
+        
+        .refresh-btn {
+            background-color: #6c757d;
+            color: white;
+            width: 48%;
+            margin-top: 10px;
+        }
+
+        .link-btn {
+            background-color: #17a2b8;
+            color: white;
+            width: 48%;
+            margin-top: 10px;
+        }
+        /* FIN NUEVOS ESTILOS */
+
         .pdf-btn {
             background-color: #dc3545;
             color: white;
@@ -213,7 +235,12 @@
             <input type="text" name="integrante" class="integrante-input" placeholder="Nombre del Integrante 1 (ej: Iván)" oninput="saveData()">
         </div>
         <button class="add-btn" onclick="agregarIntegrante()">+ Adicionar otro Integrante</button>
-    </section>
+        
+        <button class="refresh-btn" onclick="refrescarPagina()">🔄 Refrescar y Limpiar Todo</button>
+        <a href="https://rmns82839-rgb.github.io/subredes/ class="link-btn" style="text-decoration: none; display: inline-block;">
+            <button class="link-btn" style="width: 100%; margin: 0;">🌐 Ir a Conversor de Subredes</button>
+        </a>
+        </section>
     <hr>
 
     <section class="converter-section">
@@ -225,6 +252,7 @@
             </div>
         </div>
         <button class="add-btn" onclick="agregarInput('decToBin')">+ Agregar otro número decimal</button>
+        <button class="clear-btn" onclick="limpiarResultados('decToBin')">🧹 Limpiar Resultados de Decimal a Binario</button>
         <div id="resultadosDecimalABinario" class="pdf-content"></div>
     </section>
     <hr>
@@ -237,6 +265,7 @@
             </div>
         </div>
         <button class="add-btn" onclick="agregarInput('binToDec')">+ Agregar otro número binario</button>
+        <button class="clear-btn" onclick="limpiarResultados('binToDec')">🧹 Limpiar Resultados de Binario a Decimal</button>
         <div id="resultadosBinarioADecimal" class="pdf-content"></div>
     </section>
 
@@ -424,8 +453,13 @@
             const inputElements = document.querySelectorAll(tipo === 'decToBin' ? '#decToBinInputs .conversion-input' : '#binToDecInputs .conversion-input');
 
             let allResultsHTML = '';
+            // Se asume que el outputContainer (result-output) está inmediatamente después del inputGroup (conversion-input)
             inputElements.forEach(inputGroup => {
-                const resultDiv = inputGroup.nextElementSibling;
+                let resultDiv = inputGroup.nextElementSibling;
+                // Buscar el result-output que se añadió dinámicamente
+                while (resultDiv && !resultDiv.classList.contains('result-output')) {
+                    resultDiv = resultDiv.nextElementSibling;
+                }
 
                 if (resultDiv && resultDiv.classList.contains('result-output') && resultDiv.innerHTML.includes('conversion-result')) {
                     allResultsHTML += resultDiv.innerHTML;
@@ -440,6 +474,39 @@
         }
 
 
+        // --- NUEVA FUNCIÓN: Limpiar resultados de una sección ---
+        function limpiarResultados(tipo) {
+            const containerId = tipo === 'decToBin' ? 'decToBinInputs' : 'binToDecInputs';
+            const inputElements = document.querySelectorAll(`#${containerId} .conversion-input`);
+
+            // Eliminar los contenedores de resultado dinámicos
+            inputElements.forEach(inputGroup => {
+                let resultDiv = inputGroup.nextElementSibling;
+                while (resultDiv && !resultDiv.classList.contains('result-output')) {
+                    resultDiv = resultDiv.nextElementSibling;
+                }
+                if (resultDiv && resultDiv.classList.contains('result-output')) {
+                    resultDiv.remove();
+                }
+                // Limpiar el valor del input para que no se recargue el resultado
+                inputGroup.querySelector('input').value = '';
+            });
+
+            // Llamar a actualizarResultados para limpiar el contenedor principal
+            actualizarResultados(tipo);
+            saveData(); // Guardar el estado sin resultados y con inputs vacíos
+            alert(`✅ Resultados de ${tipo === 'decToBin' ? 'Decimal a Binario' : 'Binario a Decimal'} limpiados. Los inputs también han sido vaciados.`);
+        }
+
+        // --- NUEVA FUNCIÓN: Refrescar la página completamente ---
+        function refrescarPagina() {
+            if (confirm('⚠️ ¿Estás seguro que deseas refrescar la página? Esto borrará TODOS los datos y resultados guardados.')) {
+                localStorage.removeItem('tallerConversionesData'); // Eliminar todos los datos guardados
+                window.location.reload(); // Recargar la página
+            }
+        }
+
+
         // --- 1. Decimal a Binario (Divisiones Sucesivas) ---
         function convertDecimalToBinary(button) {
             const input = button.previousElementSibling;
@@ -447,17 +514,22 @@
             const inputGroup = button.parentElement;
 
             let outputContainer = inputGroup.nextElementSibling;
+            // Buscar el result-output, si no existe, crearlo
+            while (outputContainer && !outputContainer.classList.contains('result-output')) {
+                outputContainer = outputContainer.nextElementSibling;
+            }
+
             if (!outputContainer || !outputContainer.classList.contains('result-output')) {
                 outputContainer = document.createElement('div');
                 outputContainer.className = 'result-output';
-                outputContainer.style.display = 'none';
+                outputContainer.style.display = 'none'; // Se mantiene oculto
                 inputGroup.after(outputContainer);
             }
 
             if (!isPositiveInteger(decimal)) {
                 outputContainer.innerHTML = '<div class="resultado" style="color:#dc3545;">⚠️ Decimal entero positivo inválido.</div>';
                 actualizarResultados('decToBin');
-                saveData(); // Guarda incluso el valor inválido para no perderlo
+                saveData();
                 return;
             }
 
@@ -495,12 +567,15 @@
             tablaHTML += '<thead><tr><th>NÚMERO</th><th>DIVIDIDO ENTRE 2</th><th class="residuo-col">RESIDUO</th></tr></thead>';
             tablaHTML += '<tbody>';
 
+            // Invertir el orden de iteración para la visualización del resultado (de más reciente a más antiguo, aunque la tabla se lee de arriba a abajo)
             for (let i = 0; i < pasos.length; i++) {
                 const paso = pasos[i];
                 let residuoCellContent = paso.residuo;
                 let residuoCellClass = 'residuo-col';
 
-                if (i === pasos.length - 1) {
+                // El MSB (Most Significant Bit) es el cociente final (o el último residuo antes de que el cociente sea 0)
+                // En la tabla, este es el último paso, que corresponde al primer dígito del binario.
+                if (i === pasos.length - 1) { // El último paso de la división es el MSB
                     residuoCellClass += ' dec-bin-msb';
                 }
 
@@ -514,7 +589,7 @@
 
             outputContainer.innerHTML = tablaHTML;
             actualizarResultados('decToBin');
-            saveData(); // Guardar después del cálculo exitoso
+            saveData();
         }
 
 
@@ -525,6 +600,11 @@
             const inputGroup = button.parentElement;
 
             let outputContainer = inputGroup.nextElementSibling;
+            // Buscar el result-output, si no existe, crearlo
+            while (outputContainer && !outputContainer.classList.contains('result-output')) {
+                outputContainer = outputContainer.nextElementSibling;
+            }
+
             if (!outputContainer || !outputContainer.classList.contains('result-output')) {
                 outputContainer = document.createElement('div');
                 outputContainer.className = 'result-output';
@@ -535,7 +615,7 @@
             if (!/^[01]+$/.test(binarioStr) || binarioStr === '') {
                 outputContainer.innerHTML = '<div class="resultado" style="color:#dc3545;">⚠️ Binario inválido (solo 0s y 1s).</div>';
                 actualizarResultados('binToDec');
-                saveData(); // Guarda incluso el valor inválido para no perderlo
+                saveData();
                 return;
             }
 
@@ -550,6 +630,7 @@
             let filaParcial = '<tr><th class="residuo-col">Parcial</th>';
 
             for (let i = 0; i < nBits; i++) {
+                // El dígito más a la derecha (LSB) corresponde a la potencia 2^0 (i=0)
                 const digito = parseInt(binarioStr[nBits - 1 - i]);
                 const potencia = i;
                 const valorPotencia = Math.pow(2, potencia);
@@ -562,11 +643,17 @@
 
                 if (digito === 1) {
                     decimal += valorPotencia;
+                    // Construir la suma de izquierda a derecha para que el último término sea la potencia de 2^0
                     sumaParcial = sumaParcial === '' ? `${valorPotencia}` : `${valorPotencia} + ${sumaParcial}`;
                 }
             }
+            
+            // Invertir la suma parcial para que se lea de izquierda a derecha (2^n + ... + 2^0)
+            const sumandos = sumaParcial.split(' + ').reverse();
+            let sumaFinal = sumandos.join(' + ');
+            if(sumandos.length === 1 && sumandos[0] === '') sumaFinal = '0'; // Caso de binario que solo tiene ceros
 
-            let sumaHTML = `<p style="font-weight: bold;">Suma de valores: ${sumaParcial} = <span class="residuo-col" style="padding: 5px; border-radius: 4px; display: inline-block;">${decimal}</span></p>`;
+            let sumaHTML = `<p style="font-weight: bold;">Suma de valores: ${sumaFinal} = <span class="residuo-col" style="padding: 5px; border-radius: 4px; display: inline-block;">${decimal}</span></p>`;
 
             tablaHTML += `<div class="resultado" style="margin-bottom: 10px;">${binarioStr}<sub>(2)</sub> = ${decimal}<sub>(10)</sub></div>`;
             tablaHTML += '<p style="font-weight: bold; margin: 15px 0 5px;">Procedimiento:</p>';
@@ -583,7 +670,7 @@
 
             outputContainer.innerHTML = tablaHTML;
             actualizarResultados('binToDec');
-            saveData(); // Guardar después del cálculo exitoso
+            saveData();
         }
 
 
@@ -655,7 +742,7 @@
             // Sección Binario a Decimal
             if (binResults) {
                 // Forzar salto de página fuerte entre secciones grandes
-                finalContent += `<div style="page-break-before: always; margin-top: 0px;"></div>`; 
+                finalContent += `<div style="page-break-before: always; margin-top: 0px;"></div>`;
                 finalContent += `<h3 style="color: #333; margin-top: 25px; border-bottom: 1px solid #eee; padding-bottom: 5px; text-align: center;">Conversión Binario a Decimal (Suma de Potencias)</h3>`;
                 finalContent += binResults;
             }
@@ -665,10 +752,10 @@
 
             // Preparación para Captura
             contentHTML.querySelectorAll('.proceso-table-container').forEach(container => {
-                container.style.overflowX = 'visible'; 
+                container.style.overflowX = 'visible';
                 const table = container.querySelector('table');
                 if (table) {
-                    table.style.transform = 'scale(1)'; 
+                    table.style.transform = 'scale(1)';
                     table.style.minWidth = '100%';
                     table.style.fontSize = '0.85em';
                 }
